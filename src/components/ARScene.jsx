@@ -8,20 +8,29 @@ import {
   IconButton,
   Stack,
   Link,
+  Avatar,
+  Divider,
+  Button,
 } from "@mui/material";
-import { LinkedIn, YouTube, Email, Close } from "@mui/icons-material";
+import {
+  LinkedIn as LinkedInIcon,
+  GitHub as GitHubIcon,
+  Email as EmailIcon,
+  VideocamOff as VideocamOffIcon,
+} from "@mui/icons-material";
 
 export default function ARScene() {
   const sceneRef = useRef(null);
   const [targetFound, setTargetFound] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
 
   useEffect(() => {
-    // A-Frame components often need to load after mount, but script tags handle registration.
-    // We can add event listeners here if needed (e.g. targetFound, targetLost)
     const sceneEl = sceneRef.current;
-    if (sceneEl) {
-      const arSystem = sceneEl.systems["mindar-image-system"];
-    }
+
+    const onARError = (event) => {
+      console.error("AR Error:", event);
+      setCameraError(true);
+    };
 
     const onTargetFound = () => {
       console.log("Target Found");
@@ -38,10 +47,17 @@ export default function ARScene() {
       target.addEventListener("targetLost", onTargetLost);
     }
 
+    if (sceneEl) {
+      sceneEl.addEventListener("arError", onARError);
+    }
+
     return () => {
       if (target) {
         target.removeEventListener("targetFound", onTargetFound);
         target.removeEventListener("targetLost", onTargetLost);
+      }
+      if (sceneEl) {
+        sceneEl.removeEventListener("arError", onARError);
       }
     };
   }, []);
@@ -52,12 +68,60 @@ export default function ARScene() {
         width: "100%",
         height: "100vh",
         overflow: "hidden",
-        position: "absolute",
-        top: 0,
-        left: 0,
-        zIndex: 0,
+        position: "relative",
       }}
     >
+      {/* Camera Error / Permission Overlay */}
+      {cameraError && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.85)",
+            padding: 3,
+          }}
+        >
+          <Paper
+            elevation={24}
+            sx={{
+              padding: 4,
+              borderRadius: 4,
+              textAlign: "center",
+              background: "rgba(30, 30, 30, 0.95)",
+              color: "white",
+              border: "1px solid rgba(255, 243, 0, 0.4)",
+              maxWidth: 400,
+            }}
+          >
+            <VideocamOffIcon sx={{ fontSize: 60, color: "#e4b60f", mb: 2 }} />
+            <Typography variant="h5" fontWeight="bold" gutterBottom>
+              Camera Required
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.8, mb: 3 }}>
+              To view Eugene Say's AR Namecard, please allow camera access.
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => window.location.reload()}
+              sx={{
+                bgcolor: "#00f3ff",
+                color: "#121212",
+                fontWeight: "bold",
+                "&:hover": { bgcolor: "#00c3cc" },
+              }}
+            >
+              Enable Camera
+            </Button>
+          </Paper>
+        </Box>
+      )}
       {/* MUI NICE INFO CARD OVERLAY */}
       <Box
         sx={{
@@ -87,24 +151,80 @@ export default function ARScene() {
               boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
             }}
           >
-            <Stack spacing={1}>
-              <Typography
-                variant="h5"
-                fontWeight="bold"
-                sx={{ letterSpacing: 1 }}
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Avatar
+                sx={{
+                  width: 60,
+                  height: 60,
+                  bgcolor: "#00f3ff",
+                  boxShadow: "0 0 15px rgba(0, 243, 255, 0.5)",
+                  border: "2px solid rgba(255,255,255,0.5)",
+                }}
               >
-                Eugene Say
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ opacity: 0.8, color: "#00ffff" }}
-              >
-                CREATIVE DEVELOPER
-              </Typography>
-              <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>
-                Building immersive AR experiences with React & MindAR.
-              </Typography>
+                ES
+              </Avatar>
+              <Box>
+                <Typography
+                  variant="h5"
+                  fontWeight="900"
+                  sx={{ letterSpacing: 0.5 }}
+                >
+                  Eugene Say
+                </Typography>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ color: "#00f3ff", opacity: 0.8, fontWeight: 600 }}
+                >
+                  Frontend Developer
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#e4b60fff",
+                    fontWeight: "bold",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  Apecia
+                </Typography>
+              </Box>
             </Stack>
+
+            <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.1)" }} />
+
+            <Stack direction="row" spacing={2} justifyContent="space-around">
+              <IconButton
+                size="small"
+                sx={{ color: "white", "&:hover": { color: "#00f3ff" } }}
+              >
+                <EmailIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                sx={{ color: "white", "&:hover": { color: "#00f3ff" } }}
+              >
+                <LinkedInIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                sx={{ color: "white", "&:hover": { color: "#00f3ff" } }}
+              >
+                <GitHubIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+
+            <Typography
+              variant="caption"
+              sx={{
+                mt: 2,
+                display: "block",
+                opacity: 0.6,
+                fontStyle: "italic",
+                textAlign: "center",
+              }}
+            >
+              Scan the card to activate the AR core.
+            </Typography>
           </Paper>
         </Fade>
       </Box>
@@ -115,7 +235,7 @@ export default function ARScene() {
         mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.0/examples/image-tracking/assets/card-example/card.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 10; warmupTolerance: 5;"
         color-space="sRGB"
         embedded
-        renderer="colorManagement: true, physicallyCorrectLights; precision: high; antialias: true;"
+        renderer="colorManagement: true; physicallyCorrectLights: true; precision: high; antialias: true; logarithmicDepthBuffer: true;"
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false"
         style={{ width: "100%", height: "100%", position: "absolute" }}
@@ -150,118 +270,172 @@ export default function ARScene() {
         ></a-light>
 
         <a-entity id="target-entity" mindar-image-target="targetIndex: 0">
-          <a-entity position="0 0 0" scale="0.6 0.6 0.6">
-            {/* Central Singularity (Nucleus) - Pulsing Tech Core */}
-            <a-entity position="0 0 0.5">
-              {/* Inner Core: Solid Dark Purple */}
+          <a-entity position="0 0 0" scale="0.8 0.8 0.8">
+            {/* 1. VIBRANT NEON PARTICLES */}
+            <a-entity position="0 0 0">
+              {[...Array(40)].map((_, i) => {
+                const colors = [
+                  "#00f3ff",
+                  "#ff00ff",
+                  "#ffff00",
+                  "#ff0044",
+                  "#ffffff",
+                ];
+                return (
+                  <a-sphere
+                    key={i}
+                    position={`${(Math.random() - 0.5) * 4} ${(Math.random() - 0.5) * 4} ${(Math.random() - 0.5) * 3}`}
+                    radius={0.005 + Math.random() * 0.012}
+                    color={colors[i % colors.length]}
+                    material="shader: flat; opacity: 0.8; transparent: true"
+                    animation={`property: position; to: ${(Math.random() - 0.5) * 4.5} ${(Math.random() - 0.5) * 4.5} ${(Math.random() - 0.5) * 3.5}; dur: ${6000 + Math.random() * 8000}; dir: alternate; loop: true; easing: easeInOutSine`}
+                  ></a-sphere>
+                );
+              })}
+            </a-entity>
+
+            {/* 2. GLOWING NUCLEUS CLUSTER */}
+            <a-entity
+              position="0 0 0.5"
+              animation="property: rotation; to: 0 360 360; loop: true; dur: 30000; easing: linear"
+            >
               <a-sphere
-                radius="0.35"
-                color="#1a0033"
-                material="roughness: 0; metalness: 1"
+                radius="0.15"
+                color="#fff"
+                material="emissive: #fff; emissiveIntensity: 10;"
               >
                 <a-light
                   type="point"
-                  intensity="1"
-                  distance="1"
+                  intensity="3"
+                  distance="2"
                   color="#00f3ff"
                 ></a-light>
               </a-sphere>
 
-              {/* Energy Layer: Electric Blue Pulse */}
-              <a-sphere
-                radius="0.4"
-                color="#00f3ff"
-                opacity="0.4"
-                material="transparent: true; emissive: #00f3ff; emissiveIntensity: 2"
-                animation="property: scale; to: 1.15 1.15 1.15; dir: alternate; loop: true; dur: 800; easing: easeInOutQuad"
-              ></a-sphere>
+              <a-entity>
+                <a-sphere
+                  position="0.12 0.12 0"
+                  radius="0.14"
+                  color="#ff0044"
+                  material="roughness: 0.2; metalness: 0.9; emissive: #ff0044; emissiveIntensity: 2;"
+                ></a-sphere>
+                <a-sphere
+                  position="-0.12 -0.12 0.05"
+                  radius="0.14"
+                  color="#ff0044"
+                  material="roughness: 0.2; metalness: 0.9; emissive: #ff0044; emissiveIntensity: 2;"
+                ></a-sphere>
+                <a-sphere
+                  position="-0.12 0.12 -0.05"
+                  radius="0.14"
+                  color="#0077ff"
+                  material="roughness: 0.2; metalness: 0.9; emissive: #0077ff; emissiveIntensity: 2;"
+                ></a-sphere>
+                <a-sphere
+                  position="0.12 -0.12 -0.05"
+                  radius="0.14"
+                  color="#0077ff"
+                  material="roughness: 0.2; metalness: 0.9; emissive: #0077ff; emissiveIntensity: 2;"
+                ></a-sphere>
+              </a-entity>
 
-              {/* Outer Grid: Neon Magenta */}
+              {/* Glass Outer Containment Field */}
               <a-sphere
                 radius="0.45"
-                color="#ff00ff"
-                opacity="0.7"
-                wireframe="true"
-                material="emissive: #ff00ff; emissiveIntensity: 1"
-                animation="property: rotation; to: -360 360 0; loop: true; dur: 15000; easing: linear"
+                color="#fff"
+                opacity="0.15"
+                material="roughness: 0; metalness: 1; transparent: true; side: double; envMap: #planetTexture;"
+                animation="property: scale; to: 1.05 1.05 1.05; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
               ></a-sphere>
             </a-entity>
 
-            {/* ATOM STRUCTURE: Cyber Electrons & Orbits */}
+            {/* 3. PHYSICAL ELECTRON SHELLS */}
 
-            {/* Shell 1 - Neon Blue */}
+            {/* Shell 1 - Refractive Glass Orbit */}
             <a-entity
               rotation="0 0 0"
-              animation="property: rotation; to: 0 360 0; loop: true; dur: 3000; easing: linear"
+              animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear"
             >
               <a-torus
                 radius="1.2"
-                radius-tubular="0.003"
+                radius-tubular="0.006"
                 color="#00f3ff"
-                opacity="0.4"
+                opacity="0.25"
+                material="roughness: 0; metalness: 1; transparent: true"
               ></a-torus>
               <a-sphere
                 position="1.2 0 0"
-                radius="0.05"
+                radius="0.06"
                 color="#fff"
-                material="emissive: #00f3ff; emissiveIntensity: 5"
+                material="emissive: #00f3ff; emissiveIntensity: 12; metalness: 1; roughness: 0"
+              ></a-sphere>
+              {/* Motion Blur Trail */}
+              <a-sphere
+                position="1.1 -0.1 0"
+                radius="0.03"
+                color="#00f3ff"
+                opacity="0.2"
+                material="shader: flat"
               ></a-sphere>
             </a-entity>
 
-            {/* Shell 2 - Electric Magenta */}
+            {/* Shell 2 */}
             <a-entity
               rotation="90 0 0"
-              animation="property: rotation; to: 90 360 0; loop: true; dur: 4500; easing: linear"
+              animation="property: rotation; to: 90 360 0; loop: true; dur: 6000; easing: linear"
             >
               <a-torus
                 radius="1.4"
-                radius-tubular="0.003"
+                radius-tubular="0.006"
                 color="#ff00ff"
-                opacity="0.4"
+                opacity="0.25"
+                material="roughness: 0; metalness: 1; transparent: true"
               ></a-torus>
               <a-sphere
                 position="1.4 0 0"
-                radius="0.05"
+                radius="0.06"
                 color="#fff"
-                material="emissive: #ff00ff; emissiveIntensity: 5"
+                material="emissive: #ff00ff; emissiveIntensity: 12; metalness: 1; roughness: 0"
               ></a-sphere>
             </a-entity>
 
-            {/* Shell 3 - Cyan Flare */}
+            {/* Shell 3 */}
             <a-entity
               rotation="45 45 0"
-              animation="property: rotation; to: 45 405 0; loop: true; dur: 5500; easing: linear"
+              animation="property: rotation; to: 45 405 0; loop: true; dur: 8000; easing: linear"
             >
               <a-torus
                 radius="1.1"
-                radius-tubular="0.003"
-                color="#00f3ff"
-                opacity="0.4"
+                radius-tubular="0.006"
+                color="#00ffff"
+                opacity="0.25"
+                material="roughness: 0; metalness: 1; transparent: true"
               ></a-torus>
               <a-sphere
                 position="1.1 0 0"
-                radius="0.05"
+                radius="0.06"
                 color="#fff"
-                material="emissive: #00f3ff; emissiveIntensity: 5"
+                material="emissive: #00ffff; emissiveIntensity: 12; metalness: 1; roughness: 0"
               ></a-sphere>
             </a-entity>
 
-            {/* Shell 4 - Deep Space Violet */}
+            {/* Shell 4 */}
             <a-entity
               rotation="-45 45 0"
-              animation="property: rotation; to: -45 405 0; loop: true; dur: 4000; easing: linear"
+              animation="property: rotation; to: -45 405 0; loop: true; dur: 5500; easing: linear"
             >
               <a-torus
                 radius="1.3"
-                radius-tubular="0.003"
+                radius-tubular="0.006"
                 color="#7a00ff"
-                opacity="0.4"
+                opacity="0.25"
+                material="roughness: 0; metalness: 1; transparent: true"
               ></a-torus>
               <a-sphere
                 position="1.3 0 0"
-                radius="0.05"
+                radius="0.06"
                 color="#fff"
-                material="emissive: #7a00ff; emissiveIntensity: 5"
+                material="emissive: #7a00ff; emissiveIntensity: 12; metalness: 1; roughness: 0"
               ></a-sphere>
             </a-entity>
           </a-entity>
