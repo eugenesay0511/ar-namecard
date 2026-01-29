@@ -212,19 +212,6 @@ export default function ARScene() {
                 <GitHubIcon fontSize="small" />
               </IconButton>
             </Stack>
-
-            <Typography
-              variant="caption"
-              sx={{
-                mt: 2,
-                display: "block",
-                opacity: 0.6,
-                fontStyle: "italic",
-                textAlign: "center",
-              }}
-            >
-              Scan the card to activate the AR core.
-            </Typography>
           </Paper>
         </Fade>
       </Box>
@@ -232,7 +219,8 @@ export default function ARScene() {
       {/* We can define custom A-Frame components here if needed via script injection, but generic tags work for now */}
       <a-scene
         ref={sceneRef}
-        mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.0/examples/image-tracking/assets/card-example/card.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 10; warmupTolerance: 5;"
+        // mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.0/examples/image-tracking/assets/card-example/card.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 10; warmupTolerance: 5;"
+        mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; missTolerance: 10; warmupTolerance: 5;"
         color-space="sRGB"
         embedded
         renderer="colorManagement: true; physicallyCorrectLights: true; precision: high; antialias: true; logarithmicDepthBuffer: true;"
