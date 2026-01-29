@@ -51,14 +51,75 @@ export default function ARScene() {
       sceneEl.addEventListener("arError", onARError);
     }
 
+    const handleUnload = () => {
+      if (
+        sceneEl &&
+        sceneEl.systems &&
+        sceneEl.systems["mindar-image-system"]
+      ) {
+        try {
+          sceneEl.systems["mindar-image-system"].stop();
+        } catch (e) {
+          console.error("Error stopping AR on unload:", e);
+        }
+      }
+      const videoList = document.querySelectorAll("video");
+      videoList.forEach((v) => {
+        if (v.srcObject) {
+          v.srcObject.getTracks().forEach((track) => track.stop());
+          v.srcObject = null;
+        }
+      });
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
+    window.addEventListener("pagehide", handleUnload);
+
     return () => {
+      window.removeEventListener("beforeunload", handleUnload);
+      window.removeEventListener("pagehide", handleUnload);
+
       if (target) {
         target.removeEventListener("targetFound", onTargetFound);
         target.removeEventListener("targetLost", onTargetLost);
       }
       if (sceneEl) {
         sceneEl.removeEventListener("arError", onARError);
+
+        // Stop MindAR system
+        try {
+          if (sceneEl.systems && sceneEl.systems["mindar-image-system"]) {
+            sceneEl.systems["mindar-image-system"].stop();
+          }
+        } catch (e) {
+          console.error("Error stopping MindAR system:", e);
+        }
+
+        // Pause the A-Frame scene
+        try {
+          sceneEl.pause();
+          if (sceneEl.renderer) {
+            sceneEl.renderer.dispose();
+          }
+        } catch (e) {
+          console.error("Error pausing scene or disposing renderer:", e);
+        }
       }
+
+      // Force stop all video tracks to ensure camera is closed
+      const videos = document.querySelectorAll("video");
+      videos.forEach((video) => {
+        if (video.srcObject) {
+          const tracks = video.srcObject.getTracks();
+          tracks.forEach((track) => track.stop());
+          video.srcObject = null;
+        }
+        video.remove();
+      });
+
+      // Cleanup A-Frame artifacts
+      const arContainers = document.querySelectorAll(".mindar-ui-overlay");
+      arContainers.forEach((el) => el.remove());
     };
   }, []);
 
@@ -105,7 +166,7 @@ export default function ARScene() {
               Camera Required
             </Typography>
             <Typography variant="body1" sx={{ opacity: 0.8, mb: 3 }}>
-              To view Eugene Say's AR Namecard, please allow camera access.
+              To view AR Namecard, please allow camera access.
             </Typography>
             <Button
               variant="contained"
