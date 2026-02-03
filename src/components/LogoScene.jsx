@@ -9,6 +9,20 @@ export default function LogoScene({ onTargetFound, onTargetLost }) {
 
   useEffect(() => {
     const sceneEl = sceneRef.current;
+
+    const cleanupGhosts = () => {
+      const ghostVideos = document.querySelectorAll("video");
+      ghostVideos.forEach((v) => {
+        if (v.srcObject) {
+          v.srcObject.getTracks().forEach((t) => t.stop());
+        }
+        v.remove();
+      });
+      const ghostOverlays = document.querySelectorAll(".mindar-ui-overlay");
+      ghostOverlays.forEach((el) => el.remove());
+    };
+    cleanupGhosts();
+
     const onARError = (event) => {
       console.error("AR Error:", event);
       setCameraError(true);
@@ -26,29 +40,60 @@ export default function LogoScene({ onTargetFound, onTargetLost }) {
     }
     if (sceneEl) sceneEl.addEventListener("arError", onARError);
 
+    const stopCamera = () => {
+      if (
+        sceneEl &&
+        sceneEl.systems &&
+        sceneEl.systems["mindar-image-system"]
+      ) {
+        try {
+          sceneEl.systems["mindar-image-system"].stop();
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+      if (sceneEl) {
+        try {
+          sceneEl.pause();
+          if (sceneEl.renderer) {
+            sceneEl.renderer.dispose();
+          }
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+      const videos = document.querySelectorAll("video");
+      videos.forEach((v) => {
+        try {
+          if (v.srcObject) {
+            v.srcObject.getTracks().forEach((track) => track.stop());
+            v.srcObject = null;
+          }
+          v.remove();
+        } catch (e) {
+          console.warn("Video cleanup error:", e);
+        }
+      });
+      document
+        .querySelectorAll(".mindar-ui-overlay")
+        .forEach((el) => el.remove());
+    };
+
+    window.addEventListener("beforeunload", stopCamera);
+    window.addEventListener("pagehide", stopCamera);
+
     return () => {
+      window.removeEventListener("beforeunload", stopCamera);
+      window.removeEventListener("pagehide", stopCamera);
+
       if (target) {
         target.removeEventListener("targetFound", handleTargetFound);
         target.removeEventListener("targetLost", handleTargetLost);
       }
       if (sceneEl) {
         sceneEl.removeEventListener("arError", onARError);
-        try {
-          if (sceneEl.systems?.["mindar-image-system"])
-            sceneEl.systems["mindar-image-system"].stop();
-        } catch (e) {}
-        try {
-          sceneEl.pause();
-          sceneEl.renderer?.dispose();
-        } catch (e) {}
       }
-      document.querySelectorAll("video").forEach((v) => {
-        v.srcObject?.getTracks().forEach((t) => t.stop());
-        v.remove();
-      });
-      document
-        .querySelectorAll(".mindar-ui-overlay")
-        .forEach((el) => el.remove());
+      stopCamera();
     };
   }, []);
 
@@ -129,46 +174,49 @@ export default function LogoScene({ onTargetFound, onTargetLost }) {
         ></a-light>
 
         <a-entity id="logo-target" mindar-image-target="targetIndex: 0">
-          {/* STABLE BASE */}
-          <a-cylinder
-            position="0 -0.6 0"
-            radius="0.3"
-            height="0.1"
-            color="#222"
-            material="metalness: 0.9; roughness: 0.1"
-          >
-            <a-ring
-              position="0 0.051 0"
-              rotation="-90 0 0"
-              radius-inner="0.2"
-              radius-outer="0.25"
-              color="#00f3ff"
-              material="emissive: #00f3ff; emissiveIntensity: 5"
-            ></a-ring>
-          </a-cylinder>
+          {/* Rotated container to make objects stand ON the marker (perpendicular to face) */}
+          <a-entity rotation="90 0 0">
+            {/* STABLE BASE - Sits on the marker surface */}
+            <a-cylinder
+              position="0 0.05 0"
+              radius="0.3"
+              height="0.1"
+              color="#222"
+              material="metalness: 0.9; roughness: 0.1"
+            >
+              <a-ring
+                position="0 0.051 0"
+                rotation="-90 0 0"
+                radius-inner="0.2"
+                radius-outer="0.25"
+                color="#00f3ff"
+                material="emissive: #00f3ff; emissiveIntensity: 5"
+              ></a-ring>
+            </a-cylinder>
 
-          {/* SPINNING LOGO - SOLID & STABLE */}
-          <a-entity
-            position="0 0.2 0"
-            animation="property: rotation; to: 0 360 0; dur: 6000; loop: true; easing: linear"
-          >
-            {/* Front Side */}
-            <a-plane
-              position="0 0 0.01"
-              width="1.2"
-              height="1.2"
-              src="#logoSvg"
-              material="transparent: true; opacity: 0.9; shader: flat; side: front"
-            ></a-plane>
-            {/* Back Side */}
-            <a-plane
-              position="0 0 -0.01"
-              rotation="0 180 0"
-              width="1.2"
-              height="1.2"
-              src="#logoSvg"
-              material="transparent: true; opacity: 0.9; shader: flat; side: front"
-            ></a-plane>
+            {/* SPINNING LOGO - SOLID & STABLE */}
+            <a-entity
+              position="0 0.85 0"
+              animation="property: rotation; to: 0 360 0; dur: 6000; loop: true; easing: linear"
+            >
+              {/* Front Side */}
+              <a-plane
+                position="0 0 0.01"
+                width="1.2"
+                height="1.2"
+                src="#logoSvg"
+                material="transparent: true; opacity: 0.9; shader: flat; side: front"
+              ></a-plane>
+              {/* Back Side */}
+              <a-plane
+                position="0 0 -0.01"
+                rotation="0 180 0"
+                width="1.2"
+                height="1.2"
+                src="#logoSvg"
+                material="transparent: true; opacity: 0.9; shader: flat; side: front"
+              ></a-plane>
+            </a-entity>
           </a-entity>
         </a-entity>
       </a-scene>

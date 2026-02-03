@@ -26,6 +26,21 @@ export default function AtomScene({ onTargetFound, onTargetLost }) {
   useEffect(() => {
     const sceneEl = sceneRef.current;
 
+    // 1. CLEAUNP GHOSTS ON MOUNT
+    // Sometimes a previous crash leaves video elements or overlays.
+    const cleanupGhosts = () => {
+      const ghostVideos = document.querySelectorAll("video");
+      ghostVideos.forEach((v) => {
+        if (v.srcObject) {
+          v.srcObject.getTracks().forEach((t) => t.stop());
+        }
+        v.remove();
+      });
+      const ghostOverlays = document.querySelectorAll(".mindar-ui-overlay");
+      ghostOverlays.forEach((el) => el.remove());
+    };
+    cleanupGhosts();
+
     const onARError = (event) => {
       console.error("AR Error:", event);
       setCameraError(true);
@@ -50,7 +65,9 @@ export default function AtomScene({ onTargetFound, onTargetLost }) {
       sceneEl.addEventListener("arError", onARError);
     }
 
-    const handleUnload = () => {
+    // ROBUST STOP FUNCTION
+    const stopCamera = () => {
+      // 1. Stop MindAR System (Worker)
       if (
         sceneEl &&
         sceneEl.systems &&
@@ -59,24 +76,50 @@ export default function AtomScene({ onTargetFound, onTargetLost }) {
         try {
           sceneEl.systems["mindar-image-system"].stop();
         } catch (e) {
-          console.error("Error stopping AR on unload:", e);
+          console.warn("MindAR system stop error:", e);
         }
       }
-      const videoList = document.querySelectorAll("video");
-      videoList.forEach((v) => {
-        if (v.srcObject) {
-          v.srcObject.getTracks().forEach((track) => track.stop());
-          v.srcObject = null;
+
+      // 2. Pause Scene (Renderer)
+      if (sceneEl) {
+        try {
+          sceneEl.pause();
+          if (sceneEl.renderer) {
+            sceneEl.renderer.dispose();
+            // Removed aggressive force context loss to prevent browser crashes
+          }
+        } catch (e) {
+          console.warn("Scene dispose error:", e);
+        }
+      }
+
+      // 3. HARD STOP ALL CAMERAS
+      const videos = document.querySelectorAll("video");
+      videos.forEach((v) => {
+        try {
+          if (v.srcObject) {
+            v.srcObject.getTracks().forEach((track) => track.stop());
+            v.srcObject = null;
+          }
+          v.remove();
+        } catch (e) {
+          console.warn("Video cleanup error:", e);
         }
       });
+
+      // 4. UI Cleanup
+      const overlays = document.querySelectorAll(".mindar-ui-overlay");
+      overlays.forEach((el) => el.remove());
     };
 
-    window.addEventListener("beforeunload", handleUnload);
-    window.addEventListener("pagehide", handleUnload);
+    // Handle abrupt page closes/refreshes
+    window.addEventListener("beforeunload", stopCamera);
+    window.addEventListener("pagehide", stopCamera); // Better for mobile
 
     return () => {
-      window.removeEventListener("beforeunload", handleUnload);
-      window.removeEventListener("pagehide", handleUnload);
+      // Clean up listeners
+      window.removeEventListener("beforeunload", stopCamera);
+      window.removeEventListener("pagehide", stopCamera);
 
       if (target) {
         target.removeEventListener("targetFound", handleTargetFound);
@@ -84,43 +127,12 @@ export default function AtomScene({ onTargetFound, onTargetLost }) {
       }
       if (sceneEl) {
         sceneEl.removeEventListener("arError", onARError);
-
-        // Stop MindAR system
-        try {
-          if (sceneEl.systems && sceneEl.systems["mindar-image-system"]) {
-            sceneEl.systems["mindar-image-system"].stop();
-          }
-        } catch (e) {
-          console.error("Error stopping MindAR system:", e);
-        }
-
-        // Pause the A-Frame scene
-        try {
-          sceneEl.pause();
-          if (sceneEl.renderer) {
-            sceneEl.renderer.dispose();
-          }
-        } catch (e) {
-          console.error("Error pausing scene or disposing renderer:", e);
-        }
       }
 
-      // Force stop all video tracks to ensure camera is closed
-      const videos = document.querySelectorAll("video");
-      videos.forEach((video) => {
-        if (video.srcObject) {
-          const tracks = video.srcObject.getTracks();
-          tracks.forEach((track) => track.stop());
-          video.srcObject = null;
-        }
-        video.remove();
-      });
-
-      // Cleanup A-Frame artifacts
-      const arContainers = document.querySelectorAll(".mindar-ui-overlay");
-      arContainers.forEach((el) => el.remove());
+      // Execute Stop
+      stopCamera();
     };
-  }, []); // Remove onTargetFound/Lost from dependency array to avoid re-bind loops if they change.
+  }, []);
   // Ideally they should be stable references from parent.
 
   return (
@@ -226,173 +238,176 @@ export default function AtomScene({ onTargetFound, onTargetLost }) {
         ></a-light>
 
         <a-entity id="target-entity" mindar-image-target="targetIndex: 0">
-          <a-entity position="0 0 0" scale="0.8 0.8 0.8">
-            {/* 1. VIBRANT NEON PARTICLES */}
-            <a-entity position="0 0 0">
-              {[...Array(40)].map((_, i) => {
-                const colors = [
-                  "#00f3ff",
-                  "#ff00ff",
-                  "#ffff00",
-                  "#ff0044",
-                  "#ffffff",
-                ];
-                return (
-                  <a-sphere
-                    key={i}
-                    position={`${(Math.random() - 0.5) * 4} ${(Math.random() - 0.5) * 4} ${(Math.random() - 0.5) * 3}`}
-                    radius={0.005 + Math.random() * 0.012}
-                    color={colors[i % colors.length]}
-                    material="shader: flat; opacity: 0.8; transparent: true"
-                    animation={`property: position; to: ${(Math.random() - 0.5) * 4.5} ${(Math.random() - 0.5) * 4.5} ${(Math.random() - 0.5) * 3.5}; dur: ${6000 + Math.random() * 8000}; dir: alternate; loop: true; easing: easeInOutSine`}
-                  ></a-sphere>
-                );
-              })}
-            </a-entity>
+          {/* Rotated container to make objects stand ON the marker */}
+          <a-entity rotation="90 0 0">
+            <a-entity position="0 1.0 0" scale="0.4 0.4 0.4">
+              {/* 1. VIBRANT NEON PARTICLES */}
+              <a-entity position="0 0 0">
+                {[...Array(40)].map((_, i) => {
+                  const colors = [
+                    "#00f3ff",
+                    "#ff00ff",
+                    "#ffff00",
+                    "#ff0044",
+                    "#ffffff",
+                  ];
+                  return (
+                    <a-sphere
+                      key={i}
+                      position={`${(Math.random() - 0.5) * 4} ${(Math.random() - 0.5) * 4} ${(Math.random() - 0.5) * 3}`}
+                      radius={0.005 + Math.random() * 0.012}
+                      color={colors[i % colors.length]}
+                      material="shader: flat; opacity: 0.8; transparent: true"
+                      animation={`property: position; to: ${(Math.random() - 0.5) * 4.5} ${(Math.random() - 0.5) * 4.5} ${(Math.random() - 0.5) * 3.5}; dur: ${6000 + Math.random() * 8000}; dir: alternate; loop: true; easing: easeInOutSine`}
+                    ></a-sphere>
+                  );
+                })}
+              </a-entity>
 
-            {/* 2. GLOWING NUCLEUS CLUSTER */}
-            <a-entity
-              position="0 0 0.5"
-              animation="property: rotation; to: 0 360 360; loop: true; dur: 30000; easing: linear"
-            >
-              <a-sphere
-                radius="0.15"
-                color="#fff"
-                material="emissive: #fff; emissiveIntensity: 10;"
+              {/* 2. GLOWING NUCLEUS CLUSTER */}
+              <a-entity
+                position="0 0 0.5"
+                animation="property: rotation; to: 0 360 360; loop: true; dur: 30000; easing: linear"
               >
-                <a-light
-                  type="point"
-                  intensity="3"
-                  distance="2"
-                  color="#00f3ff"
-                ></a-light>
-              </a-sphere>
+                <a-sphere
+                  radius="0.15"
+                  color="#fff"
+                  material="emissive: #fff; emissiveIntensity: 10;"
+                >
+                  <a-light
+                    type="point"
+                    intensity="3"
+                    distance="2"
+                    color="#00f3ff"
+                  ></a-light>
+                </a-sphere>
 
-              <a-entity>
+                <a-entity>
+                  <a-sphere
+                    position="0.12 0.12 0"
+                    radius="0.14"
+                    color="#ff0044"
+                    material="roughness: 0.2; metalness: 0.9; emissive: #ff0044; emissiveIntensity: 2;"
+                  ></a-sphere>
+                  <a-sphere
+                    position="-0.12 -0.12 0.05"
+                    radius="0.14"
+                    color="#ff0044"
+                    material="roughness: 0.2; metalness: 0.9; emissive: #ff0044; emissiveIntensity: 2;"
+                  ></a-sphere>
+                  <a-sphere
+                    position="-0.12 0.12 -0.05"
+                    radius="0.14"
+                    color="#0077ff"
+                    material="roughness: 0.2; metalness: 0.9; emissive: #0077ff; emissiveIntensity: 2;"
+                  ></a-sphere>
+                  <a-sphere
+                    position="0.12 -0.12 -0.05"
+                    radius="0.14"
+                    color="#0077ff"
+                    material="roughness: 0.2; metalness: 0.9; emissive: #0077ff; emissiveIntensity: 2;"
+                  ></a-sphere>
+                </a-entity>
+
+                {/* Glass Outer Containment Field */}
                 <a-sphere
-                  position="0.12 0.12 0"
-                  radius="0.14"
-                  color="#ff0044"
-                  material="roughness: 0.2; metalness: 0.9; emissive: #ff0044; emissiveIntensity: 2;"
-                ></a-sphere>
-                <a-sphere
-                  position="-0.12 -0.12 0.05"
-                  radius="0.14"
-                  color="#ff0044"
-                  material="roughness: 0.2; metalness: 0.9; emissive: #ff0044; emissiveIntensity: 2;"
-                ></a-sphere>
-                <a-sphere
-                  position="-0.12 0.12 -0.05"
-                  radius="0.14"
-                  color="#0077ff"
-                  material="roughness: 0.2; metalness: 0.9; emissive: #0077ff; emissiveIntensity: 2;"
-                ></a-sphere>
-                <a-sphere
-                  position="0.12 -0.12 -0.05"
-                  radius="0.14"
-                  color="#0077ff"
-                  material="roughness: 0.2; metalness: 0.9; emissive: #0077ff; emissiveIntensity: 2;"
+                  radius="0.45"
+                  color="#fff"
+                  opacity="0.15"
+                  material="roughness: 0; metalness: 1; transparent: true; side: double; envMap: #planetTexture;"
+                  animation="property: scale; to: 1.05 1.05 1.05; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
                 ></a-sphere>
               </a-entity>
 
-              {/* Glass Outer Containment Field */}
-              <a-sphere
-                radius="0.45"
-                color="#fff"
-                opacity="0.15"
-                material="roughness: 0; metalness: 1; transparent: true; side: double; envMap: #planetTexture;"
-                animation="property: scale; to: 1.05 1.05 1.05; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
-              ></a-sphere>
-            </a-entity>
+              {/* 3. PHYSICAL ELECTRON SHELLS */}
 
-            {/* 3. PHYSICAL ELECTRON SHELLS */}
+              {/* Shell 1 - Refractive Glass Orbit */}
+              <a-entity
+                rotation="0 0 0"
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear"
+              >
+                <a-torus
+                  radius="1.2"
+                  radius-tubular="0.006"
+                  color="#00f3ff"
+                  opacity="0.25"
+                  material="roughness: 0; metalness: 1; transparent: true"
+                ></a-torus>
+                <a-sphere
+                  position="1.2 0 0"
+                  radius="0.06"
+                  color="#fff"
+                  material="emissive: #00f3ff; emissiveIntensity: 12; metalness: 1; roughness: 0"
+                ></a-sphere>
+                {/* Motion Blur Trail */}
+                <a-sphere
+                  position="1.1 -0.1 0"
+                  radius="0.03"
+                  color="#00f3ff"
+                  opacity="0.2"
+                  material="shader: flat"
+                ></a-sphere>
+              </a-entity>
 
-            {/* Shell 1 - Refractive Glass Orbit */}
-            <a-entity
-              rotation="0 0 0"
-              animation="property: rotation; to: 0 360 0; loop: true; dur: 4000; easing: linear"
-            >
-              <a-torus
-                radius="1.2"
-                radius-tubular="0.006"
-                color="#00f3ff"
-                opacity="0.25"
-                material="roughness: 0; metalness: 1; transparent: true"
-              ></a-torus>
-              <a-sphere
-                position="1.2 0 0"
-                radius="0.06"
-                color="#fff"
-                material="emissive: #00f3ff; emissiveIntensity: 12; metalness: 1; roughness: 0"
-              ></a-sphere>
-              {/* Motion Blur Trail */}
-              <a-sphere
-                position="1.1 -0.1 0"
-                radius="0.03"
-                color="#00f3ff"
-                opacity="0.2"
-                material="shader: flat"
-              ></a-sphere>
-            </a-entity>
+              {/* Shell 2 */}
+              <a-entity
+                rotation="90 0 0"
+                animation="property: rotation; to: 90 360 0; loop: true; dur: 6000; easing: linear"
+              >
+                <a-torus
+                  radius="1.4"
+                  radius-tubular="0.006"
+                  color="#ff00ff"
+                  opacity="0.25"
+                  material="roughness: 0; metalness: 1; transparent: true"
+                ></a-torus>
+                <a-sphere
+                  position="1.4 0 0"
+                  radius="0.06"
+                  color="#fff"
+                  material="emissive: #ff00ff; emissiveIntensity: 12; metalness: 1; roughness: 0"
+                ></a-sphere>
+              </a-entity>
 
-            {/* Shell 2 */}
-            <a-entity
-              rotation="90 0 0"
-              animation="property: rotation; to: 90 360 0; loop: true; dur: 6000; easing: linear"
-            >
-              <a-torus
-                radius="1.4"
-                radius-tubular="0.006"
-                color="#ff00ff"
-                opacity="0.25"
-                material="roughness: 0; metalness: 1; transparent: true"
-              ></a-torus>
-              <a-sphere
-                position="1.4 0 0"
-                radius="0.06"
-                color="#fff"
-                material="emissive: #ff00ff; emissiveIntensity: 12; metalness: 1; roughness: 0"
-              ></a-sphere>
-            </a-entity>
+              {/* Shell 3 */}
+              <a-entity
+                rotation="45 45 0"
+                animation="property: rotation; to: 45 405 0; loop: true; dur: 8000; easing: linear"
+              >
+                <a-torus
+                  radius="1.1"
+                  radius-tubular="0.006"
+                  color="#00ffff"
+                  opacity="0.25"
+                  material="roughness: 0; metalness: 1; transparent: true"
+                ></a-torus>
+                <a-sphere
+                  position="1.1 0 0"
+                  radius="0.06"
+                  color="#fff"
+                  material="emissive: #00ffff; emissiveIntensity: 12; metalness: 1; roughness: 0"
+                ></a-sphere>
+              </a-entity>
 
-            {/* Shell 3 */}
-            <a-entity
-              rotation="45 45 0"
-              animation="property: rotation; to: 45 405 0; loop: true; dur: 8000; easing: linear"
-            >
-              <a-torus
-                radius="1.1"
-                radius-tubular="0.006"
-                color="#00ffff"
-                opacity="0.25"
-                material="roughness: 0; metalness: 1; transparent: true"
-              ></a-torus>
-              <a-sphere
-                position="1.1 0 0"
-                radius="0.06"
-                color="#fff"
-                material="emissive: #00ffff; emissiveIntensity: 12; metalness: 1; roughness: 0"
-              ></a-sphere>
-            </a-entity>
-
-            {/* Shell 4 */}
-            <a-entity
-              rotation="-45 45 0"
-              animation="property: rotation; to: -45 405 0; loop: true; dur: 5500; easing: linear"
-            >
-              <a-torus
-                radius="1.3"
-                radius-tubular="0.006"
-                color="#7a00ff"
-                opacity="0.25"
-                material="roughness: 0; metalness: 1; transparent: true"
-              ></a-torus>
-              <a-sphere
-                position="1.3 0 0"
-                radius="0.06"
-                color="#fff"
-                material="emissive: #7a00ff; emissiveIntensity: 12; metalness: 1; roughness: 0"
-              ></a-sphere>
+              {/* Shell 4 */}
+              <a-entity
+                rotation="-45 45 0"
+                animation="property: rotation; to: -45 405 0; loop: true; dur: 5500; easing: linear"
+              >
+                <a-torus
+                  radius="1.3"
+                  radius-tubular="0.006"
+                  color="#7a00ff"
+                  opacity="0.25"
+                  material="roughness: 0; metalness: 1; transparent: true"
+                ></a-torus>
+                <a-sphere
+                  position="1.3 0 0"
+                  radius="0.06"
+                  color="#fff"
+                  material="emissive: #7a00ff; emissiveIntensity: 12; metalness: 1; roughness: 0"
+                ></a-sphere>
+              </a-entity>
             </a-entity>
           </a-entity>
         </a-entity>
