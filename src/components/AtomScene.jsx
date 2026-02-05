@@ -240,7 +240,7 @@ export default function AtomScene({ onTargetFound, onTargetLost }) {
         <a-entity id="target-entity" mindar-image-target="targetIndex: 0">
           {/* Rotated container to make objects stand ON the marker */}
           <a-entity rotation="90 0 0">
-            <a-entity position="0 1.0 0" scale="0.4 0.4 0.4">
+            <a-entity position="0 0.6 0" scale="0.4 0.4 0.4">
               {/* 1. VIBRANT NEON PARTICLES */}
               <a-entity position="0 0 0">
                 {[...Array(40)].map((_, i) => {

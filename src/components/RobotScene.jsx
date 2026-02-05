@@ -233,7 +233,7 @@ export default function RobotScene({ onTargetFound, onTargetLost }) {
           {/* Rotated container to make objects stand ON the marker */}
           <a-entity rotation="90 0 0">
             {/* ROBOT MODEL - RETRO FUTURE DESIGN */}
-            <a-entity position="0 0 0" scale="0.6 0.6 0.6">
+            <a-entity position="0 0 0" scale="0.5 0.5 0.5">
               {/* 0. HOVER PLATFORM (Visual grounding) */}
               <a-cylinder
                 position="0 0 0"
