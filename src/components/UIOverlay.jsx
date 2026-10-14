@@ -8,19 +8,32 @@ import {
   Stack,
   Avatar,
   Divider,
+  Button,
 } from "@mui/material";
 import {
   LinkedIn as LinkedInIcon,
-  GitHub as GitHubIcon,
   Email as EmailIcon,
+  Phone as PhoneIcon,
+  Language as WebsiteIcon,
+  PersonAdd as PersonAddIcon,
 } from "@mui/icons-material";
+import { fullName, downloadVCard } from "../people";
 
-export default function UIOverlay({ visible }) {
+export default function UIOverlay({ visible, person }) {
+  const initials = `${person.firstName?.[0] ?? ""}${person.lastName?.[0] ?? ""}`;
+
+  const contactLinks = [
+    { key: "email", href: person.email && `mailto:${person.email}`, icon: <EmailIcon fontSize="small" />, label: "Email" },
+    { key: "phone", href: person.phone && `tel:${person.phone}`, icon: <PhoneIcon fontSize="small" />, label: "Call" },
+    { key: "linkedin", href: person.linkedin, icon: <LinkedInIcon fontSize="small" />, label: "LinkedIn" },
+    { key: "website", href: person.website, icon: <WebsiteIcon fontSize="small" />, label: "Website" },
+  ].filter((link) => link.href);
+
   return (
     <Box
       sx={{
         position: "absolute",
-        bottom: 100,
+        bottom: "calc(48px + env(safe-area-inset-bottom))",
         left: 0,
         width: "100%",
         zIndex: 100,
@@ -41,7 +54,7 @@ export default function UIOverlay({ visible }) {
             backdropFilter: "blur(15px)",
             border: "1px solid rgba(255, 255, 255, 0.3)",
             color: "white",
-            pointerEvents: "auto",
+            pointerEvents: visible ? "auto" : "none",
             boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
           }}
         >
@@ -55,7 +68,7 @@ export default function UIOverlay({ visible }) {
                 border: "2px solid rgba(255,255,255,0.5)",
               }}
             >
-              ES
+              {initials}
             </Avatar>
             <Box>
               <Typography
@@ -63,13 +76,13 @@ export default function UIOverlay({ visible }) {
                 fontWeight="900"
                 sx={{ letterSpacing: 0.5 }}
               >
-                Eugene Say
+                {fullName(person)}
               </Typography>
               <Typography
                 variant="subtitle2"
                 sx={{ color: "#00f3ff", opacity: 0.8, fontWeight: 600 }}
               >
-                Frontend Developer
+                {person.position}
               </Typography>
               <Typography
                 variant="body2"
@@ -79,33 +92,52 @@ export default function UIOverlay({ visible }) {
                   fontSize: "0.85rem",
                 }}
               >
-                Apecia
+                {person.company}
               </Typography>
             </Box>
           </Stack>
 
-          <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.1)" }} />
+          <Button
+            fullWidth
+            variant="contained"
+            startIcon={<PersonAddIcon />}
+            onClick={() => downloadVCard(person)}
+            sx={{
+              mt: 2,
+              py: 1.2,
+              borderRadius: 3,
+              bgcolor: "#00f3ff",
+              color: "#121212",
+              fontWeight: "bold",
+              boxShadow: "0 0 20px rgba(0, 243, 255, 0.5)",
+              "&:hover": { bgcolor: "#00c3cc" },
+            }}
+          >
+            Save Contact
+          </Button>
 
-          <Stack direction="row" spacing={2} justifyContent="space-around">
-            <IconButton
-              size="small"
-              sx={{ color: "white", "&:hover": { color: "#00f3ff" } }}
-            >
-              <EmailIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              sx={{ color: "white", "&:hover": { color: "#00f3ff" } }}
-            >
-              <LinkedInIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              sx={{ color: "white", "&:hover": { color: "#00f3ff" } }}
-            >
-              <GitHubIcon fontSize="small" />
-            </IconButton>
-          </Stack>
+          {contactLinks.length > 0 && (
+            <>
+              <Divider sx={{ my: 1.5, borderColor: "rgba(255,255,255,0.1)" }} />
+
+              <Stack direction="row" spacing={2} justifyContent="space-around">
+                {contactLinks.map((link) => (
+                  <IconButton
+                    key={link.key}
+                    component="a"
+                    href={link.href}
+                    target={link.href.startsWith("http") ? "_blank" : undefined}
+                    rel="noopener noreferrer"
+                    aria-label={link.label}
+                    size="small"
+                    sx={{ color: "white", "&:hover": { color: "#00f3ff" } }}
+                  >
+                    {link.icon}
+                  </IconButton>
+                ))}
+              </Stack>
+            </>
+          )}
         </Paper>
       </Fade>
     </Box>
