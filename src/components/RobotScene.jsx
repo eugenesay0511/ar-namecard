@@ -62,57 +62,71 @@ export default function RobotScene({
       target.addEventListener("targetLost", handleTargetLost);
     }
 
-    if (sceneEl) {
-      sceneEl.addEventListener("arError", onARError);
-    }
+    const getMindAR = () => sceneEl?.systems?.["mindar-image-system"];
+    let cameraOn = true; // mindar-image autoStart turns it on
 
-    const stopCamera = () => {
-      if (
-        sceneEl &&
-        sceneEl.systems &&
-        sceneEl.systems["mindar-image-system"]
-      ) {
-        try {
-          sceneEl.systems["mindar-image-system"].stop();
-        } catch (e) {
-          console.warn("MindAR system stop error:", e);
-        }
+    // MindAR's own stop() throws before stopping the tracks if the AR
+    // controller isn't ready yet, which leaves the camera running.
+    const releaseCamera = () => {
+      cameraOn = false;
+      const mindar = getMindAR();
+      try {
+        mindar?.controller?.stopProcessVideo();
+        mindar?.controller?.dispose();
+      } catch (e) {
+        console.warn("MindAR controller stop error:", e);
       }
-
-      if (sceneEl) {
-        try {
-          sceneEl.pause();
-          if (sceneEl.renderer) {
-            sceneEl.renderer.dispose();
-          }
-        } catch (e) {
-          console.warn("Scene dispose error:", e);
-        }
-      }
-
-      const videos = document.querySelectorAll("video");
-      videos.forEach((v) => {
-        try {
-          if (v.srcObject) {
-            v.srcObject.getTracks().forEach((track) => track.stop());
-            v.srcObject = null;
-          }
-          v.remove();
-        } catch (e) {
-          console.warn("Video cleanup error:", e);
-        }
+      document.querySelectorAll("video").forEach((v) => {
+        v.srcObject?.getTracks().forEach((track) => track.stop());
+        v.srcObject = null;
+        v.remove();
       });
-
-      const overlays = document.querySelectorAll(".mindar-ui-overlay");
-      overlays.forEach((el) => el.remove());
     };
 
-    window.addEventListener("beforeunload", stopCamera);
-    window.addEventListener("pagehide", stopCamera);
+    const resumeCamera = () => {
+      if (cameraOn || document.hidden) return;
+      cameraOn = true;
+      setCameraError(false);
+      getMindAR()?.start();
+    };
+
+    // A camera request still in flight when the page is hidden resolves later,
+    // after releaseCamera() has run, so stop that stream as soon as it arrives.
+    const mediaDevices = navigator.mediaDevices;
+    const originalGetUserMedia = mediaDevices?.getUserMedia;
+    if (originalGetUserMedia) {
+      mediaDevices.getUserMedia = async (constraints) => {
+        const stream = await originalGetUserMedia.call(mediaDevices, constraints);
+        if (!cameraOn) stream.getTracks().forEach((track) => track.stop());
+        return stream;
+      };
+    }
+
+    const onARReady = () => {
+      if (!cameraOn) releaseCamera();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) releaseCamera();
+      else resumeCamera();
+    };
+
+    const onPageShow = (event) => {
+      if (event.persisted) resumeCamera();
+    };
+
+    if (sceneEl) {
+      sceneEl.addEventListener("arError", onARError);
+      sceneEl.addEventListener("arReady", onARReady);
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", releaseCamera);
+    window.addEventListener("pageshow", onPageShow);
 
     return () => {
-      window.removeEventListener("beforeunload", stopCamera);
-      window.removeEventListener("pagehide", stopCamera);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", releaseCamera);
+      window.removeEventListener("pageshow", onPageShow);
 
       if (target) {
         target.removeEventListener("targetFound", handleTargetFound);
@@ -120,8 +134,20 @@ export default function RobotScene({
       }
       if (sceneEl) {
         sceneEl.removeEventListener("arError", onARError);
+        sceneEl.removeEventListener("arReady", onARReady);
       }
-      stopCamera();
+
+      releaseCamera();
+      if (originalGetUserMedia) mediaDevices.getUserMedia = originalGetUserMedia;
+      try {
+        sceneEl?.pause();
+        sceneEl?.renderer?.dispose();
+      } catch (e) {
+        console.warn("Scene dispose error:", e);
+      }
+      document
+        .querySelectorAll(".mindar-ui-overlay")
+        .forEach((el) => el.remove());
     };
   }, []);
 
