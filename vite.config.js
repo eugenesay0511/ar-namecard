@@ -18,7 +18,8 @@ const githubPagesSpaFallback = () => ({
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), basicSsl(), githubPagesSpaFallback()],
-  base: "/ar-namecard/",
+  // Vercel serves the site from the domain root; GitHub Pages from /ar-namecard/.
+  base: process.env.VERCEL ? "/" : "/ar-namecard/",
   server: {
     allowedHosts: ["jerlene-uncoaxed-trebly.ngrok-free.dev"],
     https: true,

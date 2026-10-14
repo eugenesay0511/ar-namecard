@@ -1,5 +1,5 @@
 // Everyone's namecard details. The key is the link for that person:
-//   eugenesay  ->  https://eugenesay0511.github.io/ar-namecard/eugenesay
+//   eugenesay  ->  https://<your-site>/eugenesay
 // Keys must be lowercase letters, numbers or dashes.
 // Empty or missing fields are hidden from the card and left out of the saved contact.
 export const people = {
@@ -24,7 +24,7 @@ export const people = {
   },
 };
 
-// Card shown when the link has no name, e.g. https://eugenesay0511.github.io/ar-namecard/
+// Card shown when the link has no name, e.g. https://<your-site>/
 // Set to null to show "card not found" instead.
 export const DEFAULT_PERSON = "eugenesay";
 
