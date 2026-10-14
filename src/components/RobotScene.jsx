@@ -31,7 +31,11 @@ if (window.AFRAME && !window.AFRAME.components["robot-skin"]) {
   });
 }
 
-export default function RobotScene({ onTargetFound, onTargetLost }) {
+export default function RobotScene({
+  targetIndex = 0,
+  onTargetFound,
+  onTargetLost,
+}) {
   const sceneRef = useRef(null);
   const [cameraError, setCameraError] = useState(false);
 
@@ -214,7 +218,10 @@ export default function RobotScene({ onTargetFound, onTargetLost }) {
           position="-2 2 -3"
         ></a-light>
 
-        <a-entity id="robot-target" mindar-image-target="targetIndex: 0">
+        <a-entity
+          id="robot-target"
+          mindar-image-target={`targetIndex: ${targetIndex}`}
+        >
           {/* Rotated container to make objects stand ON the marker */}
           <a-entity rotation="90 0 0">
             <a-entity position="0 0 0" scale="0.5 0.5 0.5">

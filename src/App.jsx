@@ -80,6 +80,7 @@ function App() {
           }}
         >
           <RobotScene
+            targetIndex={person.targetIndex}
             onTargetFound={handleTargetFound}
             onTargetLost={handleTargetLost}
           />

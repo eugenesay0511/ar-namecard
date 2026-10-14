@@ -1,9 +1,12 @@
 // Everyone's namecard details. The key is the link for that person:
 //   eugenesay  ->  https://<your-site>/eugenesay
 // Keys must be lowercase letters, numbers or dashes.
+// targetIndex is the position of this person's card image in public/targets.mind
+// (the order the images were added in the MindAR compiler, starting from 0).
 // Empty or missing fields are hidden from the card and left out of the saved contact.
 export const people = {
   eugenesay: {
+    targetIndex: 0,
     firstName: "Eugene",
     lastName: "Say",
     position: "Software Developer",
@@ -14,6 +17,7 @@ export const people = {
   },
 
   yungsin: {
+    targetIndex: 1,
     firstName: "Yung Sin",
     lastName: "Tan",
     position: "Software Developer",
